@@ -1,0 +1,5 @@
+[ entry point ]
+dragon.main()() = {
+    dragon.set("Prickly! Ouch!%0a;")(start_up_message)
+    dragon.print.buffer_as_string(start_up_message)()
+}
