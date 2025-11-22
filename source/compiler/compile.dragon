@@ -1,5 +1,5 @@
 [
-    The Cactus Programming Language's Compiler to DragonForge
+    The Cactus Programming Language's Compiler to DragonForge Anvil Byte Code
 ]
 
 [
@@ -251,16 +251,16 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
                         }
 
                         [ larse member definition ]
-                        [ cactus.larse.structure.argument(workspace, argument_count, error)(workspace, argument, ran_out_of_characters, error)
+                        cactus.larse.structure.argument(workspace, argument_count, error)(workspace, argument, ran_out_of_characters, found, not_found, error)
                         dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
-                        dragon.jump.bottom(error:occured, @dragon.master_scope)() ]
+                        dragon.jump.bottom(error:occured, @dragon.master_scope)()
 
                         [  ]
                     }
                 }
 
                 [ error, invalid syntax ]
-                dragon.set("Larsing Error: Was searching for either an alias definition or structure definition after detecting an initial definition but neither was found.")(error_message)
+                dragon.set("Larsing Error: When searching for either an alias definition or structure definition after finding the equals sign but neither was found.")(error_message)
                 dragon.error.generate(error_message, workspace:current_text_location)(error)
 
                 [ quit ]
@@ -273,6 +273,11 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
             }
 
             [ otherwise, error ]
+            dragon.set("Larsing Error: When searching for something to larse at the file scope level, cactus couldn't figure out what to larse at the line number specified.")(error_message)
+            dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+            [ quit ]
+            dragon.jump.bottom(error:occured, @dragon.master_scope)()
         }
 
         [ advance files current ]
@@ -289,7 +294,7 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
 }
 
 [ larse a structure definition argument ]
-cactus.larse.structure.argument(workspace !cactus.larsing.workspace, argument_index !dragon.cell, error !dragon.error)(workspace !cactus.larsing.workspace, argument !cactus.larsling.structure.argument, found !dragon.cell, not_found !dragon.cell, error !dragon.error) = {
+cactus.larse.structure.argument(workspace !cactus.larsing.workspace, argument_index !dragon.cell, error !dragon.error)(workspace !cactus.larsing.workspace, argument !cactus.larsling.structure.argument, ran_out_of_characters !dragon.cell, found !dragon.cell, not_found !dragon.cell, error !dragon.error) = {
     [ setup constants ]
     dragon.set(dragon.hexadecimal.2C)(comma)
 
