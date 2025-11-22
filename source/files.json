@@ -1,0 +1,6 @@
+{
+    "file_paths": [
+        "../cactus/source/cactus.dragon",
+        "../cactus/source/compiler/compile.dragon"
+    ]
+}

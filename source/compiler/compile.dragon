@@ -1,0 +1,659 @@
+[
+    The Cactus Programming Language's Compiler to DragonForge
+]
+
+[
+    Larsing - Types
+]
+
+[ larsling program - all larsable language features ]
+!cactus.larsling.program(
+    aliases !dragon.list #cactus.larsling.alias,
+    structures !dragon.list #cactus.larsling.structure,
+    functions !dragon.list #cactus.larsling.function
+)
+
+[ larsling structure - a structure ]
+!cactus.larsling.structure(
+    name !cactus.larsling.text,
+    members !dragon.list #cactus.larsling.structure.argument
+)
+
+[ larsling alias - a new name given to a structure (does not include functions) ]
+!cactus.larsling.alias(
+    old_name !cactus.larsling.text,
+    new_name !cactus.larsling.text
+)
+
+[ larsling function - a function ]
+!cactus.larsling.function(
+    name !cactus.larsling.text,
+    inputs !dragon.list #cactus.larsling.function.argument,
+    outputs !dragon.list #cactus.larsling.function.argument,
+    scope !cactus.larsling.scope
+)
+
+[ larsling function header argument ]
+!cactus.larsling.function.argument(
+    name !cactus.larsling.text,
+    type !cactus.larsling.text [ optional ]
+)
+
+[ larsling structure member argument ]
+!cactus.larsling.structure.argument(
+    name !cactus.larsling.text,
+    type !cactus.larsling.text
+)
+
+[ larsling scope ]
+!cactus.larsling.scope(
+    name !cactus.larsling.text,
+    condition !cactus.larsling.statement.argument,
+    statements !dragon.list #cactus.larsling.statement
+)
+
+[ larsling statement ]
+!cactus.larsling.statement(
+    [ type ]
+    type !dragon.cell #cactus.larsling.statement.type,
+
+    [ value ]
+    call !cactus.larsling.statement.call,
+    offset !cactus.larsling.statement.offset,
+    scope !cactus.larsling.scope
+)
+
+[ larsling function call ]
+!cactus.larsling.statement.call(
+    name !cactus.larsling.text,
+    inputs !dragon.list #cactus.larsling.statement.argument,
+    outputs !dragon.list #cactus.larsling.statement.argument
+)
+
+[ larsling statement arguments (at least one of either name, type, offset or string must be present) ]
+!cactus.larsling.statement.argument(
+    [ the type of argument ]
+    argument_type !dragon.cell,
+
+    [ the argument itself ]
+    namespace !cactus.larsling.statement.namespace [ optional ],
+    string !cactus.larsling.text, [ optional ]
+    structure_type !cactus.larsling.text, [ optional ]
+    offset !cactus.larsling.statement.offset [ optional ]
+)
+
+[ a name / member searcher ]
+!cactus.larsling.statement.namespace(
+    names !dragon.list #cactus.larsling.text
+)
+
+[ larsling offset ]
+!cactus.larsling.statement.offset(
+    name !cactus.larsling.text,
+    jump_extension !cactus.larsling.text [ optional ]
+)
+
+[ text ]
+!cactus.larsling.text(
+    value !dragon.buffer,
+    location !dragon.text.location
+)
+
+[ statement types ]
+!cactus.larsling.statement.types(
+    call !dragon.cell,
+    offset !dragon.cell,
+    scope !dragon.cell
+)
+
+[ argument types ]
+!cactus.larsling.statement.arguments.types(
+    namespace !dragon.cell,
+    string !dragon.cell,
+    structure_type !dragon.cell
+)
+
+[
+    Larsing Workspace
+]
+!cactus.larsing.workspace(
+    current_files !dragon.current, [ multiple files ]
+    current_file !dragon.current, [ only one file ]
+    current_text_location !dragon.text.location
+)
+
+[
+    Larsing - Larsing
+]
+
+[ larse program ]
+cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !dragon.error) = {
+    [ setup constants ]
+    dragon.pack.null()(dummy.buffer !dragon.buffer)
+    dragon.pack.null()(dummy.structure_definition !cactus.larsling.structure)
+    dragon.pack.null()(dummy.structure_argument !cactus.larsling.structure.argument)
+    dragon.structure.byte_size(dummy.buffer)(buffer.byte_size)
+    dragon.structure.byte_size(dummy.structure_definition)(structure_definition.byte_size)
+    dragon.structure.byte_size(dummy.structure_argument)(structure_argument.byte_size)
+    dragon.set(dragon.hexadecimal.28)(left_parenthesis)
+    dragon.set(dragon.hexadecimal.29)(right_parenthesis)
+    dragon.set(dragon.hexadecimal.21)(exclamation_point)
+    dragon.set(dragon.hexadecimal.3D)(equals_sign)
+
+    [ setup blank error ]
+    dragon.error.setup_blank()(error)
+
+    [ open program ]
+    cactus.open.larsling.program()(output)
+
+    [ setup workspace ]
+    dragon.pack.null()(workspace !cactus.larsing.workspace)
+    dragon.pack(user_code, user_code:start)(workspace:current_files !dragon.current)
+
+    [ loop over all files ]
+    @larse.all_files dragon.always = {
+        [ check for files ]
+        dragon.current.within_range(workspace:current_files)(in_range, out_of_range)
+        dragon.jump.bottom(out_of_range, @larse.all_files)()
+
+        [ get file ]
+        dragon.buffer.calculate.end_address(workspace:current_files:progress, buffer.byte_size)(current_files.end)
+        dragon.pack(workspace:current_files:progress, current_files.end)(current_files.as_buffer !dragon.buffer)
+        dragon.buffer_to_structure(current_files.as_buffer)(file !dragon.buffer)
+
+        [ setup current file ]
+        dragon.pack(file, file:start)(workspace:current_file !dragon.current)
+
+        [ check to see if file is empty ]
+        dragon.integer.within_range(file:start, file:start, file:end)(in_range, out_of_range)
+        dragon.jump.bottom(out_of_range, @larse.one_file)()
+
+        [ reset text location line number & character index ]
+        dragon.copy(dragon.constant.1)(workspace:current_text_location:line_number)
+        dragon.copy(dragon.constant.0)(workspace:current_text_location:character_index)
+
+        [ loop over file characters ]
+        @larse.one_file dragon.always = {
+            [ check for exclamation point ]
+            cactus.larse.check_for_character(workspace, exclamation_point, exclamation_point, dragon.false, error)(workspace, ran_out_of_characters, found, not_found, error)
+            dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+            dragon.jump.bottom(error:occured, @dragon.master_scope)()
+            @larse.one_file.search.data_definition.exclamation_point found = {
+                [ larse for a type ]
+                dragon.set("Larsing Error: When searching for an alias or a structure definition, the type definition name was not found.")(message)
+                cactus.larse.type(workspace, message, error)(workspace, data_definition_name, ran_out_of_characters, found, not_found, error)
+                dragon.jump.bottom(ran_out_of_characters, @larse.one_file)()
+                dragon.jump.bottom(error:occured, @dragon.master_scope)()
+
+                [ check for equals sign ]
+                cactus.larse.check_for_character(workspace, equals_sign, equals_sign, dragon.true, error)(workspace, ran_out_of_characters, found, not_found, error)
+                dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+                dragon.jump.bottom(error:occured, @dragon.master_scope)()
+                @larse.one_file.search.data_definition.equals_sign.not_found not_found = {
+                    [ error ]
+                    dragon.set("Larsing Error: When searching for the equals sign of an alias or a structure definition, it was not found.")(message)
+                    dragon.error.generate(message, workspace:current_text_location)(error)
+
+                    [ quit ]
+                    dragon.jump.bottom(error:occured, @dragon.master_scope)()
+                }
+
+                [ check for exclamation point ]
+                cactus.larse.check_for_character(workspace, exclamation_point, exclamation_point, dragon.false, error)(workspace, ran_out_of_characters, found, not_found, error)
+                dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+                dragon.jump.bottom(error:occured, @dragon.master_scope)()
+                @larse.one_file.search.data_content.alias_new_name found = {
+                    [ larse for a type ]
+                    dragon.set("Larsing Error: When searching for an alias's new name, the name was not found.")(message)
+                    cactus.larse.type(workspace, message, error)(workspace, data_definition_alias, ran_out_of_characters, found, not_found, error)
+                    dragon.jump.bottom(ran_out_of_characters, @larse.one_file)()
+                    dragon.jump.bottom(error:occured, @dragon.master_scope)()
+
+                    [ found alias, append it ]
+                    dragon.pack(data_definition_name, data_definition_alias)(alias !cactus.larsling.alias)
+                    cactus.list.append.larsling.alias(output:aliases, alias)(output:aliases)
+
+                    [ DEBUG ]
+                    cactus.larse.print.alias(alias)()
+                    dragon.print.new_line()()
+
+                    [ next item to larse ]
+                    dragon.jump.top(dragon.always, @larse.one_file)()
+                }
+
+                [ check for left parenthesis ]
+                cactus.larse.check_for_character(workspace, left_parenthesis, left_parenthesis, dragon.true, error)(workspace, ran_out_of_characters, found, not_found, error)
+                dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+                dragon.jump.bottom(error:occured, @dragon.master_scope)()
+                @larse.one_file.search.data_content.structure_definition found = {
+                    [ create list for members ]
+                    dragon.integer.multiply(dragon.constant.32, structure_argument.byte_size)(increase)
+                    dragon.list.open(increase)(structure_members)
+
+                    [ setup argument counter ]
+                    dragon.copy(dragon.constant.0)(argument_count)
+
+                    [ search for members ]
+                    @larse.one_file.search.data_content.structure_definition.member_definition dragon.always = {
+                        [ check for closing right parenthesis ]
+                        cactus.larse.check_for_character(workspace, right_parenthesis, right_parenthesis, dragon.true, error)(workspace, ran_out_of_characters, found, not_found, error)
+                        dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+                        dragon.jump.bottom(error:occured, @dragon.master_scope)()
+                        @larse.one_file.search.data_content.structure_definition.finished found = {
+                            [ create structure ]
+                            dragon.pack(data_definition_name, structure_members)(structure !cactus.larsling.structure)
+
+                            [ append structure ]
+                            cactus.list.append.larsling.structure(output:structures, structure)(output:structures)
+
+                            [ next item ]
+                            dragon.jump.top(dragon.always, @larse.one_file)()
+                        }
+
+                        [ larse member definition ]
+                        [ cactus.larse.structure.argument(workspace, argument_count, error)(workspace, argument, ran_out_of_characters, error)
+                        dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+                        dragon.jump.bottom(error:occured, @dragon.master_scope)() ]
+
+                        [  ]
+                    }
+                }
+
+                [ error, invalid syntax ]
+                dragon.set("Larsing Error: Was searching for either an alias definition or structure definition after detecting an initial definition but neither was found.")(error_message)
+                dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+                [ quit ]
+                dragon.jump.bottom(error:occured, @dragon.master_scope)()
+            }
+
+            [ search for name character ]
+            @larse.one_file.search.function_name dragon.never = {
+                [ todo ]
+            }
+
+            [ otherwise, error ]
+        }
+
+        [ advance files current ]
+        dragon.integer.add(workspace:current_files:progress, buffer.byte_size)(workspace:current_files:progress)
+
+        [ next file index ]
+        dragon.integer.add(workspace:current_text_location:file_index, dragon.constant.1)(workspace:current_text_location:file_index)
+
+        [ next file larse ]
+        dragon.jump.top(dragon.always, @larse.all_files)()
+    }
+
+    [ exit ]
+}
+
+[ larse a structure definition argument ]
+cactus.larse.structure.argument(workspace !cactus.larsing.workspace, argument_index !dragon.cell, error !dragon.error)(workspace !cactus.larsing.workspace, argument !cactus.larsling.structure.argument, found !dragon.cell, not_found !dragon.cell, error !dragon.error) = {
+    [ setup constants ]
+    dragon.set(dragon.hexadecimal.2C)(comma)
+
+    [ check for first argument (so it doesn't require a preceeding comma) ]
+    dragon.integer.within_range(dragon.constant.0, argument_index, dragon.constant.0)(is_first_argument, not_first_argument)
+    @larse.structure_argument.is_first_argument not_first_argument = {
+        [ check for comma ]
+        cactus.larse.check_for_character(workspace, comma, comma, dragon.true, error)(workspace, ran_out_of_characters, found, not_found, error)
+        dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+        dragon.jump.bottom(error:occured, @dragon.master_scope)()
+
+        [ comma not found ]
+        @larse.structure_argument.comma_missing not_found = {
+            [ error ]
+            dragon.set("Larsing Error: Was searching for the next structure member definition but no comma was found to separate it. Nor was the arguments' closer found.")(error_message)
+            dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+            [ quit ]
+            dragon.jump.bottom(error:occured, @dragon.master_scope)()
+        }
+    }
+
+    [ skip whitespace ]
+    cactus.larse.skip_whitespace(workspace, error)(workspace, ran_out_of_characters, error)
+    dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+    dragon.jump.bottom(error:occured, @dragon.master_scope)()
+
+    [ get & check name ]
+    cactus.larse.name(workspace)(workspace, argument.name, found, not_found)
+    @larse.structure_argument.name.not_found not_found = {
+        [ error ]
+        dragon.set("Larsing Error: Missing structure argument member name.")(error_message)
+        dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+        [ quit ]
+        dragon.jump.bottom(error:occured, @dragon.master_scope)()
+    }
+
+    [ get type ]
+    dragon.set("Larsing Error: Missing structure argument member type.")(message)
+    cactus.larse.type(workspace, message, error)(workspace, argument.type, ran_out_of_characters, found, not_found, error)
+    dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+    dragon.jump.bottom(error:occured, @dragon.master_scope)()
+
+    [ pack data ]
+    dragon.pack(argument.name, argument.type)(argument !cactus.larsling.structure.argument)
+}
+
+[ larse a type ]
+cactus.larse.type(workspace !cactus.larsing.workspace, error_message !dragon.buffer, error !dragon.error)(workspace !cactus.larsing.workspace, text !cactus.larsling.text, ran_out_of_characters !dragon.cell, found !dragon.cell, not_found !dragon.cell, error !dragon.error) = {
+    [ setup constants ]
+    dragon.set(dragon.hexadecimal.21)(exclamation_point)
+    
+    [ check for exclamation point ]
+    cactus.larse.check_for_character(workspace, exclamation_point, exclamation_point, dragon.true, error)(workspace, ran_out_of_characters, found, not_found, error)
+    dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+    dragon.jump.bottom(error:occured, @dragon.master_scope)()
+    @larse.type.exclamation_point.found found = {
+        [ skip whitespace ]
+        cactus.larse.skip_whitespace(workspace, error)(workspace, ran_out_of_characters, error)
+        dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+        dragon.jump.bottom(error:occured, @dragon.master_scope)()
+
+        [ get & check name ]
+        cactus.larse.name(workspace)(workspace, text, found, not_found)
+        @larse.type.name.not_found not_found = {
+            [ error ]
+            dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+            [ quit ]
+            dragon.jump.bottom(error:occured, @dragon.master_scope)()
+        }
+
+        [ found, exit function ]
+        dragon.jump.bottom(dragon.always, @dragon.master_scope)()
+    }
+    @larse.type.exclamation_point.not_found not_found = {
+        [ error ]
+        dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+        [ quit ]
+        dragon.jump.bottom(error:occured, @dragon.master_scope)()
+    }
+}
+
+[ larse a name ]
+cactus.larse.name(workspace !cactus.larsing.workspace)(workspace !cactus.larsing.workspace, text !cactus.larsling.text, found !dragon.cell, not_found !dragon.cell) = {
+    [ setup characters ]
+    dragon.set(dragon.hexadecimal.61)(lowercase.start)
+    dragon.set(dragon.hexadecimal.7A)(lowercase.end)
+    dragon.set(dragon.hexadecimal.41)(uppercase.start)
+    dragon.set(dragon.hexadecimal.5A)(uppercase.end)
+    dragon.set(dragon.hexadecimal.30)(decimal_digits.start)
+    dragon.set(dragon.hexadecimal.39)(decimal_digits.end)
+    dragon.set(dragon.hexadecimal.5F)(underscore)
+    dragon.set(dragon.hexadecimal.2E)(period)
+
+    [ setup text start ]
+    dragon.integer.subtract(workspace:current_file:progress, dragon.constant.1)(progress.end)
+    dragon.pack(workspace:current_file:progress, progress.end)(text:value !dragon.buffer)
+    dragon.copy(workspace:current_text_location)(text:location)
+    dragon.copy(dragon.false)(found)
+    dragon.copy(dragon.true)(not_found)
+
+    [ check characters ]
+    @check_characters dragon.always = {
+        [ make sure there are more characters to read ]
+        dragon.current.within_range(workspace:current_file)(in_range, ran_out_of_characters)
+        @ran_out_of_characters ran_out_of_characters = {
+            [ if not, quit ]
+            dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+        }
+
+        [ get character ]
+        dragon.address_to_cell(workspace:current_file:progress, dragon.ascii_character.byte_size)(character, advancement)
+
+        [ check character ]
+        dragon.integer.within_range(lowercase.start, character, lowercase.end)(in_range, out_of_range)
+        dragon.jump(in_range, @found_character)()
+        dragon.integer.within_range(uppercase.start, character, uppercase.end)(in_range, out_of_range)
+        dragon.jump(in_range, @found_character)()
+        dragon.integer.within_range(decimal_digits.start, character, decimal_digits.end)(in_range, out_of_range)
+        dragon.jump(in_range, @found_character)()
+        dragon.integer.within_range(underscore, character, underscore)(in_range, out_of_range)
+        dragon.jump(in_range, @found_character)()
+        dragon.integer.within_range(period, character, period)(in_range, out_of_range)
+        dragon.jump(in_range, @found_character)()
+
+        [ did not find character, quit loop ]
+        dragon.jump.bottom(dragon.always, @dragon.master_scope)()
+
+        [ found character ]
+        @found_character
+
+        [ update output ]
+        dragon.copy(dragon.true)(found)
+        dragon.copy(dragon.false)(not_found)
+
+        [ advance text ]
+        dragon.integer.add(text:value:end, dragon.ascii_character.byte_size)(text:value:end)
+
+        [ advance current ]
+        dragon.integer.add(workspace:current_file:progress, dragon.ascii_character.byte_size)(workspace:current_file:progress)
+
+        [ jump to loop start ]
+        dragon.jump.top(dragon.always, @check_characters)()
+    }
+}
+
+[ check for a character ]
+cactus.larse.check_for_character(workspace !cactus.larsing.workspace, character_range_start !dragon.cell, character_range_end !dragon.cell, advance_on_found !dragon.cell, error !dragon.error)(workspace !cactus.larsing.workspace, ran_out_of_characters !dragon.cell, found !dragon.cell, not_found !dragon.cell, error !dragon.error) = {
+    [ skip whitespace ]
+    cactus.larse.skip_whitespace(workspace, error)(workspace, ran_out_of_characters, error)
+    dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+    dragon.jump.bottom(error:occured, @dragon.master_scope)()
+
+    [ get character ]
+    dragon.address_to_cell(workspace:current_file:progress, dragon.ascii_character.byte_size)(character, advancement)
+    
+    [ check for character ]
+    dragon.integer.within_range(character_range_start, character, character_range_end)(found, not_found)
+
+    [ if should advance ]
+    @advance advance_on_found = {
+        [ was found ]
+        @found found = {
+            [ advance ]
+            cactus.larse.advance_character(workspace, advancement, dragon.ascii_character.byte_size)(workspace)
+        }
+    }
+}
+
+[ advance current character ]
+cactus.larse.advance_character(workspace !cactus.larsing.workspace, advancement !dragon.cell, length !dragon.cell)(workspace !cactus.larsing.workspace) = {
+    [ advance current character ]
+    dragon.copy(advancement)(workspace:current_file:progress)
+
+    [ advance statistics ]
+    dragon.integer.add(workspace:current_text_location:character_index, length)(workspace:current_text_location:character_index)
+}
+
+[ skip over whitespace ]
+cactus.larse.skip_whitespace(workspace !cactus.larsing.workspace, error !dragon.error)(workspace !cactus.larsing.workspace, ran_out_of_characters !dragon.cell, error !dragon.error) = {
+    [ setup characters ]
+    dragon.set(dragon.integer.32)(whitespace.range.end)
+    dragon.pack(dragon.constant.0, whitespace.range.end)(whitespace !dragon.buffer)
+    dragon.set(dragon.hexadecimal.0A)(new_line)
+    dragon.set(dragon.hexadecimal.5B)(left_square_bracket)
+    dragon.set(dragon.hexadecimal.5D)(right_square_bracket)
+
+    [ setup comment depth ]
+    dragon.copy(dragon.constant.0)(comment_depth)
+
+    [ loop over characters ]
+    @skip_whitespace dragon.always = {
+        [ make sure there are more characters to read ]
+        dragon.current.within_range(workspace:current_file)(in_range, ran_out_of_characters)
+        @ran_out_of_characters ran_out_of_characters = {
+            [ check to see if a comment was not closed, if not then error ]
+            dragon.integer.within_range(dragon.constant.0, comment_depth, dragon.constant.0)(closed, not_closed)
+            @comment_not_closed not_closed = {
+                [ raise error ]
+                dragon.set("Larser Error: A nested comment was not closed all the way and ends abruptly at the current file's end.")(error_message)
+                dragon.error.generate(error_message, workspace:current_text_location)(error)
+            }
+
+            [ jump ]
+            dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
+        }
+
+        [ get character ]
+        dragon.address_to_cell(workspace:current_file:progress, dragon.ascii_character.byte_size)(character, advancement)
+
+        [ check if is new line ]
+        dragon.integer.within_range(new_line, character, new_line)(in_range, out_of_range)
+        @new_line_detected in_range = {
+            [ advance line number marker ]
+            dragon.integer.add(workspace:current_text_location:line_number, dragon.constant.1)(workspace:current_text_location:line_number)
+
+            [ advance ]
+            dragon.jump(in_range, @advance)()
+        }
+
+        [ check for left square bracket ]
+        dragon.integer.within_range(left_square_bracket, character, left_square_bracket)(in_range, out_of_range)
+        @left_square_bracket in_range = {
+            [ increment comment depth ]
+            dragon.integer.add(comment_depth, dragon.constant.1)(comment_depth)
+
+            [ next character ]
+            dragon.jump(in_range, @advance)()
+        }
+        
+        [ check for right square bracket ]
+        dragon.integer.within_range(right_square_bracket, character, right_square_bracket)(in_range, out_of_range)
+        @right_square_bracket in_range = {
+            [ check for comment depth error ]
+            dragon.integer.within_range(dragon.constant.0, comment_depth, dragon.constant.0)(in_range, out_of_range)
+            @right_square_bracket.underflow in_range = {
+                [ raise error ]
+                dragon.set("Larser Error: A comment depth underflow occured.")(error_message)
+                dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+                [ exit loop ]
+                dragon.jump.bottom(error:occured, @dragon.master_scope)()
+            }
+
+            [ decrement comment depth ]
+            dragon.integer.subtract(comment_depth, dragon.constant.1)(comment_depth)
+
+            [ next character ]
+            dragon.jump(dragon.always, @advance)()
+        }
+
+        [ check if is not nested ]
+        dragon.integer.within_range(dragon.constant.0, comment_depth, dragon.constant.0)(in_range, out_of_range)
+        @nested_comment_remaining out_of_range = {
+            dragon.jump(out_of_range, @advance)()
+        }
+
+        [ check if is normal whitespace ]
+        dragon.integer.within_range(whitespace:start, character, whitespace:end)(in_range, out_of_range)
+        @whitespace_remaining in_range = {
+            dragon.jump(in_range, @advance)()
+        }
+
+        [ no more whitespace to skip ]
+        dragon.jump.bottom(dragon.always, @dragon.master_scope)()
+
+        [ advancement marker ]
+        @advance
+
+        [ advance current and statistics ]
+        dragon.copy(advancement)(workspace:current_file:progress)
+        dragon.integer.add(workspace:current_text_location:character_index, dragon.ascii_character.byte_size)(workspace:current_text_location:character_index)
+
+        [ jump to start of loop ]
+        dragon.jump.top(dragon.always, @skip_whitespace)()
+    }
+}
+
+[
+    Larser - Program Management
+]
+
+[ open larsling program ]
+cactus.open.larsling.program()(program !cactus.larsling.program) = {
+    [ setup baked data ]
+    dragon.set(dragon.integer.2048)(multiplier)
+    dragon.pack.null()(alias !cactus.larsling.alias)
+    dragon.pack.null()(structure !cactus.larsling.structure)
+    dragon.pack.null()(function !cactus.larsling.function)
+
+    [ calculate increases ]
+    dragon.structure.byte_size(alias)(alias.byte_size)
+    dragon.structure.byte_size(structure)(structure.byte_size)
+    dragon.structure.byte_size(function)(function.byte_size)
+    dragon.integer.multiply(alias.byte_size, multiplier)(alias.increase)
+    dragon.integer.multiply(structure.byte_size, multiplier)(structure.increase)
+    dragon.integer.multiply(function.byte_size, multiplier)(function.increase)
+
+    [ open lists ]
+    dragon.list.open(alias.increase)(program:aliases)
+    dragon.list.open(structure.increase)(program:structures)
+    dragon.list.open(function.increase)(program:functions)
+}
+
+[
+    Larser - List Appending
+]
+
+[ append larsling structure ]
+cactus.list.append.larsling.structure(list !dragon.list, data !cactus.larsling.structure)(list !dragon.list) = {
+    [ append members ]
+    cactus.list.append.larsling.text(list, data:name)(list)
+    dragon.list.append.list(list, data:members)(list)
+}
+
+[ append larsling alias ]
+cactus.list.append.larsling.alias(list !dragon.list, data !cactus.larsling.alias)(list !dragon.list) = {
+    [ append members ]
+    cactus.list.append.larsling.text(list, data:old_name)(list)
+    cactus.list.append.larsling.text(list, data:new_name)(list)
+}
+
+[ append larsling text ]
+cactus.list.append.larsling.text(list !dragon.list, data !cactus.larsling.text)(list !dragon.list) = {
+    [ append members ]
+    dragon.list.append.buffer(list, data:value)(list)
+    dragon.list.append.text.location(list, data:location)(list)
+}
+
+[
+    Larser - Printing
+]
+
+[ print an alias ]
+cactus.larse.print.alias(alias !cactus.larsling.alias)() = {
+    dragon.set("Alias: ")(message)
+    dragon.print.buffer_as_string(message)()
+    cactus.larse.print.text(alias:old_name)()
+    cactus.larse.print.text(alias:new_name)()
+}
+
+[ print text ]
+cactus.larse.print.text(text !cactus.larsling.text)() = {
+    [ setup strings ]
+    dragon.set("[ ")(header)
+    dragon.set(", ")(separator)
+    dragon.set(" ]")(footer)
+    dragon.set("%22;")(double_quote)
+
+    [ print data ]
+    dragon.print.buffer_as_string(header)()
+    dragon.print.buffer_as_string(double_quote)()
+    dragon.print.buffer_as_string(text:value)()
+    dragon.print.buffer_as_string(double_quote)()
+    dragon.print.buffer_as_string(separator)()
+    dragon.print.buffer_as_string(header)()
+    dragon.print.integer.unsigned(text:location:file_index)()
+    dragon.print.buffer_as_string(separator)()
+    dragon.print.integer.unsigned(text:location:line_number)()
+    dragon.print.buffer_as_string(separator)()
+    dragon.print.integer.unsigned(text:location:character_index)()
+    dragon.print.buffer_as_string(footer)()
+    dragon.print.buffer_as_string(footer)()
+}

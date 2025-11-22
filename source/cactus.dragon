@@ -1,5 +1,14 @@
-[ entry point ]
+[ main ]
 dragon.main()() = {
-    dragon.set("Prickly! Ouch!%0a;")(start_up_message)
-    dragon.print.buffer_as_string(start_up_message)()
+    [ display startup message ]
+    dragon.set("This is a cactus compiler...! Ouch!%0a;")(message)
+    dragon.print.buffer_as_string(message)()
+
+    [ get all user code buffers from context input ]
+    dragon.copy(dragon.context.input)(user_codes)
+    
+    [ larse files ]
+    cactus.larse(user_codes)(output, error)
+    dragon.error.print_if_occured(error)()
+    dragon.jump.bottom(error:occured, @dragon.master_scope)()
 }
