@@ -244,11 +244,11 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
                             dragon.integer.within_range(dragon.constant.0, argument_count, dragon.constant.0)(no_arguments, one_or_more_arguments)
                             @larse.one_file.search.data_content.structure_definition.no_members no_arguments = {
                                 [ raise error ]
-                            dragon.set("Larsing Error: A structure definition had zero arguments (members).")(error_message)
-                            dragon.error.generate(error_message, workspace:current_text_location)(error)
+                                dragon.set("Larsing Error: A structure definition had zero arguments (members).")(error_message)
+                                dragon.error.generate(error_message, workspace:current_text_location)(error)
 
-                            [ quit ]
-                            dragon.jump.bottom(dragon.always, @dragon.master_scope)()
+                                [ quit ]
+                                dragon.jump.bottom(dragon.always, @dragon.master_scope)()
                             }
 
                             [ create structure ]
