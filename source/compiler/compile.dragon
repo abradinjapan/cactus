@@ -182,7 +182,7 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
                 [ larse for a type ]
                 dragon.set("Larsing Error: When searching for an alias or a structure definition, the type definition name was not found.")(message)
                 cactus.larse.type(workspace, message, error)(workspace, data_definition_name, ran_out_of_characters, found, not_found, error)
-                dragon.jump.bottom(ran_out_of_characters, @larse.one_file)()
+                dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
                 dragon.jump.bottom(error:occured, @dragon.master_scope)()
 
                 [ check for equals sign ]
@@ -243,6 +243,10 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
                             [ create structure ]
                             dragon.pack(data_definition_name, structure_members)(structure !cactus.larsling.structure)
 
+                            [ DEBUG ]
+                            cactus.larse.print.structure(structure)()
+                            dragon.print.new_line()()
+
                             [ append structure ]
                             cactus.list.append.larsling.structure(output:structures, structure)(output:structures)
 
@@ -254,8 +258,25 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
                         cactus.larse.structure.argument(workspace, argument_count, error)(workspace, argument, ran_out_of_characters, found, not_found, error)
                         dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
                         dragon.jump.bottom(error:occured, @dragon.master_scope)()
+                        
+                        [ raise error if not found ]
+                        @larse.one_file.search.data_definition.error.structure_argument.not_found not_found = {
+                            [ raise error ]
+                            dragon.set("Larsing Error: When searching for either an alias definition or structure definition after finding the equals sign but neither was found.")(error_message)
+                            dragon.error.generate(error_message, workspace:current_text_location)(error)
 
-                        [  ]
+                            [ quit ]
+                            dragon.jump.bottom(dragon.always, @dragon.master_scope)()
+                        }
+
+                        [ append structure argument ]
+                        cactus.list.append.larsling.structure.argument(structure_members, argument)(structure_members)
+
+                        [ next agrument count ]
+                        dragon.integer.add(argument_count, dragon.constant.1)(argument_count)
+
+                        [ jump to loop start, next argument to find ]
+                        dragon.jump.top(dragon.always, @larse.one_file.search.data_content.structure_definition.member_definition)()
                     }
                 }
 
@@ -323,7 +344,7 @@ cactus.larse.structure.argument(workspace !cactus.larsing.workspace, argument_in
     dragon.jump.bottom(error:occured, @dragon.master_scope)()
 
     [ get & check name ]
-    cactus.larse.name(workspace)(workspace, argument.name, found, not_found)
+    cactus.larse.name(workspace)(workspace, argument.name, ran_out_of_characters, found, not_found)
     @larse.structure_argument.name.not_found not_found = {
         [ error ]
         dragon.set("Larsing Error: Missing structure argument member name.")(error_message)
@@ -359,7 +380,7 @@ cactus.larse.type(workspace !cactus.larsing.workspace, error_message !dragon.buf
         dragon.jump.bottom(error:occured, @dragon.master_scope)()
 
         [ get & check name ]
-        cactus.larse.name(workspace)(workspace, text, found, not_found)
+        cactus.larse.name(workspace)(workspace, text, ran_out_of_characters, found, not_found)
         @larse.type.name.not_found not_found = {
             [ error ]
             dragon.error.generate(error_message, workspace:current_text_location)(error)
@@ -381,7 +402,7 @@ cactus.larse.type(workspace !cactus.larsing.workspace, error_message !dragon.buf
 }
 
 [ larse a name ]
-cactus.larse.name(workspace !cactus.larsing.workspace)(workspace !cactus.larsing.workspace, text !cactus.larsling.text, found !dragon.cell, not_found !dragon.cell) = {
+cactus.larse.name(workspace !cactus.larsing.workspace)(workspace !cactus.larsing.workspace, text !cactus.larsling.text, ran_out_of_characters !dragon.cell, found !dragon.cell, not_found !dragon.cell) = {
     [ setup characters ]
     dragon.set(dragon.hexadecimal.61)(lowercase.start)
     dragon.set(dragon.hexadecimal.7A)(lowercase.end)
@@ -620,6 +641,13 @@ cactus.list.append.larsling.alias(list !dragon.list, data !cactus.larsling.alias
     cactus.list.append.larsling.text(list, data:new_name)(list)
 }
 
+[ append larsling structure argument ]
+cactus.list.append.larsling.structure.argument(list !dragon.list, data !cactus.larsling.structure.argument)(list !dragon.list) = {
+    [ append members ]
+    cactus.list.append.larsling.text(list, data:name)(list)
+    cactus.list.append.larsling.text(list, data:type)(list)
+}
+
 [ append larsling text ]
 cactus.list.append.larsling.text(list !dragon.list, data !cactus.larsling.text)(list !dragon.list) = {
     [ append members ]
@@ -661,4 +689,63 @@ cactus.larse.print.text(text !cactus.larsling.text)() = {
     dragon.print.integer.unsigned(text:location:character_index)()
     dragon.print.buffer_as_string(footer)()
     dragon.print.buffer_as_string(footer)()
+}
+
+[ print a structure ]
+cactus.larse.print.structure(structure !cactus.larsling.structure)() = {
+    [ setup strings ]
+    dragon.set("Structure: !")(header)
+    dragon.set(" = (%0a;")(middle)
+    dragon.set(")%0a;")(footer)
+
+    [ calculate byte sizes ]
+    dragon.pack.null()(dummy.structure.argument !cactus.larsling.structure.argument)
+    dragon.structure.byte_size(dummy.structure.argument)(argument.byte_size)
+
+    [ print header ]
+    dragon.print.buffer_as_string(header)()
+    cactus.larse.print.text(structure:name)()
+    dragon.print.buffer_as_string(middle)()
+
+    [ setup current ]
+    dragon.current.calculate.current_from_list(structure:members)(current)
+
+    [ setup structure member (argument) loop ]
+    @loop dragon.always = {
+        [ check for more arguments ]
+        dragon.current.within_range(current)(in_range, out_of_range)
+        dragon.jump.bottom(out_of_range, @loop)()
+
+        [ get argument ]
+        dragon.buffer.calculate.end_address(current:progress, argument.byte_size)(current_argument.end)
+        dragon.pack(current:progress, current_argument.end)(current_argument.as_buffer !dragon.buffer)
+        dragon.buffer_to_structure(current_argument.as_buffer)(argument !cactus.larsling.structure.argument)
+
+        [ print argument ]
+        dragon.print.tabs(dragon.constant.1)()
+        cactus.larse.print.structure.argument(argument)()
+        dragon.print.new_line()()
+
+        [ advance current ]
+        dragon.integer.add(current:progress, argument.byte_size)(current:progress)
+
+        [ next item ]
+        dragon.jump.top(dragon.always, @loop)()
+    }
+
+    [ print footer ]
+    dragon.print.buffer_as_string(footer)()
+}
+
+[ print a structure argument ]
+cactus.larse.print.structure.argument(argument !cactus.larsling.structure.argument)() = {
+    [ print name ]
+    cactus.larse.print.text(argument:name)()
+
+    [ print separator ]
+    dragon.set(" !")(separator)
+    dragon.print.buffer_as_string(separator)()
+
+    [ print type ]
+    cactus.larse.print.text(argument:type)()
 }
