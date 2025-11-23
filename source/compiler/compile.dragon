@@ -240,6 +240,17 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
                         dragon.jump.bottom(ran_out_of_characters, @dragon.master_scope)()
                         dragon.jump.bottom(error:occured, @dragon.master_scope)()
                         @larse.one_file.search.data_content.structure_definition.finished found = {
+                            [ check for zero members ]
+                            dragon.integer.within_range(dragon.constant.0, argument_count, dragon.constant.0)(no_arguments, one_or_more_arguments)
+                            @larse.one_file.search.data_content.structure_definition.no_members no_arguments = {
+                                [ raise error ]
+                            dragon.set("Larsing Error: A structure definition had zero arguments (members).")(error_message)
+                            dragon.error.generate(error_message, workspace:current_text_location)(error)
+
+                            [ quit ]
+                            dragon.jump.bottom(dragon.always, @dragon.master_scope)()
+                            }
+
                             [ create structure ]
                             dragon.pack(data_definition_name, structure_members)(structure !cactus.larsling.structure)
 
@@ -262,7 +273,7 @@ cactus.larse(user_code !dragon.buffer)(output !cactus.larsling.program, error !d
                         [ raise error if not found ]
                         @larse.one_file.search.data_definition.error.structure_argument.not_found not_found = {
                             [ raise error ]
-                            dragon.set("Larsing Error: When searching for either an alias definition or structure definition after finding the equals sign but neither was found.")(error_message)
+                            dragon.set("Larsing Error: When searching for a structure argument inside a structure definition, a structure argument or a closing parenthesis was not found.")(error_message)
                             dragon.error.generate(error_message, workspace:current_text_location)(error)
 
                             [ quit ]
