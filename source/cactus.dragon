@@ -1,7 +1,7 @@
 [ main ]
 dragon.main()() = {
     [ display startup message ]
-    dragon.set("🌵 This is a cactus compiler...! Ouch!%0a;")(message)
+    dragon.set("🌵 Running the cactus compiler...! Ouch!%0a;")(message)
     dragon.print.buffer_as_string(message)()
 
     [ get all user code buffers from context input ]
